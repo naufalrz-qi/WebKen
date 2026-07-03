@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import sharp from "sharp";
 import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 
@@ -29,25 +28,13 @@ export async function POST(req: NextRequest) {
     const uploadedUrls: string[] = [];
 
     for (const file of files) {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
+      // Direct upload without sharp to avoid Vercel native module/memory issues
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const filename = section ? `${section}.${ext}` : `${Date.now()}-${randomBytes(8).toString("hex")}.${ext}`;
 
-      // Convert to webp using sharp
-      // We resize it to a max of 1200px width/height to keep size low but quality acceptable
-      const webpBuffer = await sharp(buffer)
-        .resize(1200, 1200, {
-          fit: 'inside',
-          withoutEnlargement: true
-        })
-        .webp({ quality: 80 })
-        .toBuffer();
-
-      // Create filename: fixed name if section provided, otherwise unique
-      const filename = section ? `${section}.webp` : `${Date.now()}-${randomBytes(8).toString("hex")}.webp`;
-
-      // Upload to Supabase Storage
-      const { error } = await supabase.storage.from(BUCKET).upload(filename, webpBuffer, {
-        contentType: "image/webp",
+      // Upload the raw file directly to Supabase Storage
+      const { error } = await supabase.storage.from(BUCKET).upload(filename, file, {
+        contentType: file.type || `image/${ext}`,
         upsert: !!section, // overwrite section images (hero, about, etc.)
       });
 

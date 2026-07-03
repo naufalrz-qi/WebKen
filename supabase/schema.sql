@@ -285,3 +285,33 @@ $$ language 'plpgsql';
 CREATE TRIGGER calculate_stock_after_movement
   AFTER INSERT OR UPDATE OR DELETE ON stock_movements
   FOR EACH ROW EXECUTE FUNCTION recalculate_product_stock();
+
+-- =============================================================
+-- Storage Policies (Buckets & RLS)
+-- =============================================================
+
+-- Create the public bucket if it doesn't exist
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('images', 'images', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Public can view images
+CREATE POLICY "Public Access" 
+ON storage.objects FOR SELECT 
+USING ( bucket_id = 'images' );
+
+-- Admins (authenticated) can upload, update, and delete images
+CREATE POLICY "Admin Upload" 
+ON storage.objects FOR INSERT 
+TO authenticated 
+WITH CHECK ( bucket_id = 'images' );
+
+CREATE POLICY "Admin Update" 
+ON storage.objects FOR UPDATE 
+TO authenticated 
+USING ( bucket_id = 'images' );
+
+CREATE POLICY "Admin Delete" 
+ON storage.objects FOR DELETE 
+TO authenticated 
+USING ( bucket_id = 'images' );
