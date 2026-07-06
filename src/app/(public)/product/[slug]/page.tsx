@@ -1,21 +1,47 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, CheckCircle, ShieldCheck } from "@phosphor-icons/react/dist/ssr"
 import { Badge } from "@/components/ui/badge"
-import { ProductImage } from "@/components/ProductImage"
+import { ProductGallery } from "@/components/ProductGallery"
 import { createClient } from "@/lib/supabase/server"
+import { getProductBySlug } from "@/lib/products"
 import { AddToCart } from "@/components/cart/AddToCart"
+import ProductCard from "@/components/ProductCard"
+
+const RELATED_LIMIT = 4
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const data = await getProductBySlug(slug)
+  if (!data) return {}
+
+  const brandName = data.brands?.name || "W//KEN"
+  const priceLabel = `Rp ${Number(data.price).toLocaleString("id-ID")}`
+  const description = data.description || `${data.name} — ${brandName} — ${priceLabel}`
+  const image = data.product_images?.[0]?.image_url
+
+  return {
+    title: data.name,
+    description,
+    openGraph: {
+      title: data.name,
+      description,
+      images: image ? [image] : undefined,
+    },
+  }
+}
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const supabase = await createClient()
   if (!supabase) return notFound()
 
-  const { data } = await supabase
-    .from("products")
-    .select("*, brands(*), product_images(*)")
-    .eq("slug", slug)
-    .single()
+  const data = await getProductBySlug(slug)
 
   if (!data) return notFound()
 
@@ -30,6 +56,29 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const priceLabel = `Rp ${Number(data.price).toLocaleString("id-ID")}`
   const brandName = data.brands?.name || "W//KEN"
 
+  let related: any[] = []
+  if (data.brand_id) {
+    const { data: brandMatches } = await supabase
+      .from("products")
+      .select("*, brands(name), product_images(*)")
+      .eq("brand_id", data.brand_id)
+      .neq("id", data.id)
+      .eq("status", "Active")
+      .limit(RELATED_LIMIT)
+    related = brandMatches || []
+  }
+  if (related.length < RELATED_LIMIT && data.category_id) {
+    const excludeIds = [data.id, ...related.map((r) => r.id)]
+    const { data: categoryMatches } = await supabase
+      .from("products")
+      .select("*, brands(name), product_images(*)")
+      .eq("category_id", data.category_id)
+      .not("id", "in", `(${excludeIds.join(",")})`)
+      .eq("status", "Active")
+      .limit(RELATED_LIMIT - related.length)
+    related = [...related, ...(categoryMatches || [])]
+  }
+
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-6 md:py-12">
       <Link
@@ -41,25 +90,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       </Link>
 
       <div className="grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12">
-        <section className="space-y-4">
-          <div className="overflow-hidden rounded-md border border-border bg-surface-1 p-2">
-            <div className="aspect-[4/3] overflow-hidden rounded-sm bg-surface-2">
-              <ProductImage src={images[0]} alt={data.name} className="h-full w-full object-cover" />
-            </div>
-          </div>
-          <div className="grid grid-cols-4 gap-3">
-            {images.slice(0, 4).map((img, index) => (
-              <div
-                key={`${img}-${index}`}
-                className={`aspect-square overflow-hidden rounded-md border bg-surface-2 ${
-                  index === 0 ? "border-interactive" : "border-border opacity-70"
-                }`}
-              >
-                <ProductImage src={img} alt={`${data.name} ${index + 1}`} className="h-full w-full object-cover" />
-              </div>
-            ))}
-          </div>
-        </section>
+        <ProductGallery images={images} alt={data.name} />
 
         <section className="flex flex-col">
           <div className="rounded-md border border-border bg-surface-1 p-5 md:p-6">
@@ -128,6 +159,20 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
         </section>
       </div>
+
+      {related.length > 0 && (
+        <section className="mt-12">
+          <h2 className="text-xs font-black uppercase text-interactive">Model serupa</h2>
+          <p className="mt-2 text-2xl font-black tracking-tight text-foreground">
+            Kamu mungkin juga suka
+          </p>
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-5 lg:grid-cols-4">
+            {related.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   )
 }

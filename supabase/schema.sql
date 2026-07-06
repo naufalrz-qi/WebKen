@@ -51,6 +51,10 @@ CREATE TABLE products (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+CREATE INDEX ON products (status, created_at DESC);
+CREATE INDEX ON products (brand_id, created_at DESC);
+CREATE INDEX ON products (category_id, created_at DESC);
+
 -- 3. Product Images
 CREATE TABLE product_images (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -70,6 +74,9 @@ CREATE TABLE stock_movements (
   note TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+CREATE INDEX ON stock_movements (product_id, created_at DESC);
+CREATE INDEX ON stock_movements (created_at DESC);
 
 -- 5. Accounts: Profiles (role lives here; auth.users is Supabase-managed)
 CREATE TABLE profiles (
