@@ -1,41 +1,31 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import Link from "next/link"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import ProductCard from "@/components/ProductCard"
 import { MagnifyingGlass, SlidersHorizontal } from "@phosphor-icons/react/dist/ssr"
-import { Input } from "@/components/ui/input"
+import { Pagination } from "@/components/Pagination"
+import { SORT_OPTIONS } from "@/lib/pagination"
 
-export function Catalog({ initialProducts }: { initialProducts: any[] }) {
-  const [search, setSearch] = useState("")
-  const [sort, setSort] = useState("Terbaru")
+interface CatalogProps {
+  products: any[]
+  currentPage: number
+  totalPages: number
+  totalCount: number
+  sort: string
+}
 
-  const sortedProducts = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    const filteredProducts = initialProducts.filter((product) => {
-      if (!query) return true
+export function Catalog({ products, currentPage, totalPages, totalCount, sort }: CatalogProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
-      return (
-        product.name?.toLowerCase().includes(query) ||
-        product.brands?.name?.toLowerCase().includes(query) ||
-        product.brand?.toLowerCase().includes(query) ||
-        product.sku?.toLowerCase().includes(query)
-      )
-    })
-
-    return [...filteredProducts].sort((a, b) => {
-      switch (sort) {
-        case "Harga: Rendah ke Tinggi":
-          return Number(a.price) - Number(b.price)
-        case "Harga: Tinggi ke Rendah":
-          return Number(b.price) - Number(a.price)
-        case "A-Z":
-          return a.name.localeCompare(b.name)
-        case "Terbaru":
-        default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      }
-    })
-  }, [initialProducts, search, sort])
+  const handleSortChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("sort", value)
+    params.set("page", "1")
+    router.push(`${pathname}?${params.toString()}`)
+  }
 
   return (
     <div className="space-y-6">
@@ -46,51 +36,51 @@ export function Catalog({ initialProducts }: { initialProducts: any[] }) {
             Model terbaru
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            {sortedProducts.length} produk siap ditelusuri berdasarkan nama, brand, atau SKU.
+            {totalCount} produk siap ditelusuri berdasarkan nama, brand, atau SKU.
           </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-[minmax(220px,320px)_180px]">
-          <div className="relative">
+          <Link
+            href="/search"
+            className="relative flex h-11 items-center rounded-md border border-border bg-surface-1 pl-9 text-sm font-semibold text-muted-foreground transition-colors hover:border-interactive/45 hover:text-foreground"
+          >
             <MagnifyingGlass className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Cari model, brand, SKU"
-              className="h-11 bg-surface-1 pl-9"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </div>
+            Cari model, brand, SKU
+          </Link>
           <label className="relative">
             <SlidersHorizontal className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <select
               aria-label="Urutkan produk"
               className="h-11 w-full rounded-md border border-border bg-surface-1 pl-9 pr-3 text-sm font-semibold text-foreground outline-none transition-colors focus:border-interactive focus:ring-2 focus:ring-interactive/25"
               value={sort}
-              onChange={(event) => setSort(event.target.value)}
+              onChange={(event) => handleSortChange(event.target.value)}
             >
-              <option>Terbaru</option>
-              <option>Harga: Rendah ke Tinggi</option>
-              <option>Harga: Tinggi ke Rendah</option>
-              <option>A-Z</option>
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
         </div>
       </div>
 
-      {sortedProducts.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-5 lg:grid-cols-4">
-          {sortedProducts.map((product) => (
-            <ProductCard key={product.id ?? product.sku} product={product} />
-          ))}
-        </div>
+      {products.length > 0 ? (
+        <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-5 lg:grid-cols-4">
+            {products.map((product) => (
+              <ProductCard key={product.id ?? product.sku} product={product} />
+            ))}
+          </div>
+          <Pagination currentPage={currentPage} totalPages={totalPages} />
+        </>
       ) : (
         <div className="grid min-h-[260px] place-items-center rounded-md border border-dashed border-border bg-surface-1 p-10 text-center">
           <div>
             <MagnifyingGlass className="mx-auto mb-4 size-8 text-muted-foreground" />
-            <p className="font-bold text-foreground">Produk tidak ditemukan</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Coba kata kunci lain atau kosongkan pencarian.
-            </p>
+            <p className="font-bold text-foreground">Belum ada produk</p>
+            <p className="mt-2 text-sm text-muted-foreground">Cek lagi setelah stok baru ditambahkan.</p>
           </div>
         </div>
       )}

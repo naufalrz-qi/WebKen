@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   BookmarkSimple,
+  ClipboardText,
   Gear,
   House,
   Package,
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/admin", label: "Dashboard", icon: SquaresFour, exact: true },
   { href: "/admin/orders", label: "Orders", icon: Receipt },
   { href: "/admin/products", label: "Inventory", icon: Package },
+  { href: "/admin/stock-ledger", label: "Stock Ledger", icon: ClipboardText },
   { href: "/admin/brands", label: "Brands", icon: BookmarkSimple },
   { href: "/admin/categories", label: "Categories", icon: Tag },
 ]

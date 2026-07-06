@@ -1,18 +1,20 @@
 'use client'
 
 import { useState } from "react"
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import Link from "next/link"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { MagnifyingGlass, PencilSimple, Trash, CaretUp, CaretDown, Plus } from "@phosphor-icons/react/dist/ssr"
+import { cn } from "@/lib/utils"
+import { MagnifyingGlass, PencilSimple, Trash, CaretUp, CaretDown, Plus, ClipboardText } from "@phosphor-icons/react/dist/ssr"
 import { deleteProduct } from "@/app/actions/products"
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogBody } from "@/components/ui/dialog"
 import { ProductForm } from "@/app/admin/(protected)/products/product-form"
@@ -161,6 +163,13 @@ export function ProductsTable({ initialData, brands = [], categories = [] }: { i
                       </TableCell>
                       <TableCell className="py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Link
+                            href={`/admin/stock-ledger?product=${item.id}`}
+                            aria-label="Lihat ledger"
+                            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-7 w-7 text-muted-foreground hover:text-foreground")}
+                          >
+                            <ClipboardText className="h-4 w-4" />
+                          </Link>
                           <Button
                             variant="ghost"
                             size="icon"

@@ -4,12 +4,38 @@ import { ArrowRight, CheckCircle, Package, ShieldCheck } from "@phosphor-icons/r
 import { ProductImage } from "@/components/ProductImage"
 import { createClient } from "@/lib/supabase/server"
 import { Catalog } from "@/components/Catalog"
+import { CATALOG_PAGE_SIZE, SORT_OPTIONS, getRange, getTotalPages, parsePage } from "@/lib/pagination"
 
-export default async function HomePage() {
+function sortToOrder(sort: string): { column: string; ascending: boolean } {
+  switch (sort) {
+    case "harga-asc":
+      return { column: "price", ascending: true }
+    case "harga-desc":
+      return { column: "price", ascending: false }
+    case "az":
+      return { column: "name", ascending: true }
+    case "terbaru":
+    default:
+      return { column: "created_at", ascending: false }
+  }
+}
+
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; sort?: string }>
+}) {
+  const { page: pageParam, sort: sortParam } = await searchParams
+  const page = parsePage(pageParam)
+  const sort = SORT_OPTIONS.some((option) => option.value === sortParam) ? sortParam! : "terbaru"
+
   const supabase = await createClient()
 
   let heroSection: any = null
   let products: any[] = []
+  let totalCount = 0
+  let inStock = 0
+  let latestImage: string | null = null
 
   if (supabase) {
     const { data: heroData } = await supabase
@@ -19,28 +45,47 @@ export default async function HomePage() {
       .single()
     heroSection = heroData
 
-    const { data: productsData } = await supabase
+    const { column, ascending } = sortToOrder(sort)
+    const { from, to } = getRange(page)
+    const { data: productsData, count } = await supabase
       .from("products")
-      .select(`
+      .select(
+        `
         *,
         brands (name),
         categories (name),
         product_images (image_url, is_primary, sort_order)
-      `)
+      `,
+        { count: "exact" }
+      )
+      .eq("status", "Active")
+      .order(column, { ascending })
+      .range(from, to)
+    products = productsData || []
+    totalCount = count || 0
+
+    const { data: stockRows } = await supabase.from("products").select("stock").eq("status", "Active")
+    inStock = (stockRows || []).reduce((sum, row) => sum + (row.stock || 0), 0)
+
+    const { data: latestProduct } = await supabase
+      .from("products")
+      .select("product_images(image_url, sort_order)")
       .eq("status", "Active")
       .order("created_at", { ascending: false })
-    products = productsData || []
+      .limit(1)
+      .maybeSingle()
+    const latestImages = (latestProduct?.product_images as { image_url: string; sort_order: number }[]) || []
+    latestImage =
+      latestImages.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))[0]?.image_url || null
   }
 
+  const totalPages = getTotalPages(totalCount, CATALOG_PAGE_SIZE)
   const heroTitle = heroSection?.title || "Diecast kurasi untuk kolektor yang teliti"
   const heroSubtitle =
     heroSection?.subtitle ||
     "Skala 1:64 dan 1:43, kondisi jelas, foto aktual, dan stok siap dikirim."
   const heroImage = heroSection?.image_url || "/uploads/images/no-image.webp"
-  const inStock = products.reduce((sum, product) => sum + (product.stock || 0), 0)
-  const latestImage =
-    products[0]?.product_images?.sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0))?.[0]
-      ?.image_url || heroImage
+  const finalLatestImage = latestImage || heroImage
 
   return (
     <div className="bg-background">
@@ -85,11 +130,11 @@ export default async function HomePage() {
           <div className="hidden md:block">
             <div className="ml-auto max-w-sm rounded-md border border-border bg-surface-1 p-3 shadow-[0_22px_60px_-38px_hsl(var(--foreground))]">
               <div className="aspect-[4/3] overflow-hidden rounded-sm bg-surface-2">
-                <ProductImage src={latestImage} alt="Latest diecast model" className="h-full w-full object-cover" />
+                <ProductImage src={finalLatestImage} alt="Latest diecast model" className="h-full w-full object-cover" />
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-sm bg-surface-2 px-2 py-3">
-                  <p className="text-lg font-black">{products.length}</p>
+                  <p className="text-lg font-black">{totalCount}</p>
                   <p className="text-[11px] font-semibold uppercase text-muted-foreground">Model</p>
                 </div>
                 <div className="rounded-sm bg-surface-2 px-2 py-3">
@@ -125,7 +170,7 @@ export default async function HomePage() {
       </section>
 
       <section id="catalog" className="mx-auto w-full max-w-7xl px-4 py-10 md:px-6 md:py-14">
-        <Catalog initialProducts={products} />
+        <Catalog products={products} currentPage={page} totalPages={totalPages} totalCount={totalCount} sort={sort} />
       </section>
     </div>
   )

@@ -111,6 +111,41 @@ export async function updateProduct(id: string, prevState: any, formData: FormDa
   redirect('/admin/products')
 }
 
+// Manual stock ledger entry — inserts a stock_movements row, picked up by the
+// recalculate_product_stock trigger. 'adjustment' quantity may be negative
+// (downward correction); 'in'/'damaged' quantity must be positive since the
+// trigger already applies the sign for those types.
+export async function createStockMovement(prevState: any, formData: FormData) {
+  const supabase = await createClient()
+  if (!supabase) return { error: "Database not connected" }
+
+  const product_id = formData.get('product_id') as string
+  const movement_type = formData.get('movement_type') as string
+  const quantity = Number(formData.get('quantity'))
+  const note = ((formData.get('note') as string) || '').trim() || null
+
+  if (!product_id) return { error: 'Pilih produk terlebih dahulu.' }
+  if (!['in', 'adjustment', 'damaged'].includes(movement_type)) {
+    return { error: 'Jenis pergerakan tidak valid.' }
+  }
+  if (!Number.isFinite(quantity) || quantity === 0) {
+    return { error: 'Jumlah harus diisi dan tidak boleh 0.' }
+  }
+  if (movement_type !== 'adjustment' && quantity < 0) {
+    return { error: 'Jumlah harus lebih dari 0 untuk jenis ini.' }
+  }
+
+  const { error } = await supabase
+    .from('stock_movements')
+    .insert([{ product_id, movement_type, quantity, note }])
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/stock-ledger')
+  revalidatePath('/admin/products')
+  revalidatePath('/admin')
+  return { success: true }
+}
+
 export async function deleteProduct(id: string) {
   const supabase = await createClient()
   if (!supabase) return

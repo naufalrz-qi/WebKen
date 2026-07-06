@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { CartProvider } from "@/components/cart/CartProvider"
 import { CartButton } from "@/components/cart/CartButton"
+import { HeaderSearch } from "@/components/HeaderSearch"
 
 const navItems = [
   { href: "/", label: "Katalog" },
@@ -45,6 +46,7 @@ export default function PublicLayout({
             </nav>
 
             <div className="flex items-center gap-2">
+              <HeaderSearch />
               <ThemeToggle />
               <CartButton />
             </div>
