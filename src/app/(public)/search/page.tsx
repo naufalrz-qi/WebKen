@@ -52,6 +52,20 @@ export default async function SearchPage({
       <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground md:text-4xl">
         {query ? `Hasil untuk "${query}"` : "Cari produk"}
       </h1>
+
+      <form action="/search" method="get" className="relative mt-6 max-w-xl">
+        <MagnifyingGlass className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          name="q"
+          defaultValue={query}
+          placeholder="Cari model, brand, SKU"
+          aria-label="Cari produk"
+          autoFocus
+          className="h-12 w-full rounded-md border border-border bg-surface-1 pl-12 pr-4 text-sm font-medium text-foreground outline-none transition-colors focus:border-interactive focus:ring-2 focus:ring-interactive/25"
+        />
+      </form>
+
       {query && <p className="mt-3 text-sm text-muted-foreground">{count} produk ditemukan.</p>}
 
       {!query ? (
