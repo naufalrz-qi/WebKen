@@ -42,6 +42,7 @@ export default async function AdminLayout({
             ["/admin", "Dashboard"],
             ["/admin/orders", "Orders"],
             ["/admin/products", "Inventory"],
+            ["/admin/stock-ledger", "Stock Ledger"],
             ["/admin/brands", "Brands"],
             ["/admin/categories", "Categories"],
             ["/admin/settings", "Settings"],
